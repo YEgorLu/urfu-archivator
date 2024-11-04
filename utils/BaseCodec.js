@@ -21,10 +21,11 @@ module.exports = class BaseCodec {
     throw new Error('not implemented')
   }
 
-  bitStringToBuffer(bitChars) {
+  /** @returns {{bytes, byte, bitIndex}} */
+  bitStringToBuffer(bitChars, startingBytes = 0, lastBitIndex = 7) {
     const bytes = []
-    let byte = 0
-    let bitIndex = 7
+    let byte = startingBytes
+    let bitIndex = lastBitIndex
     for (const bitStr of bitChars) {
       const bit = parseInt(bitStr)
       byte |= bit << bitIndex
@@ -36,9 +37,11 @@ module.exports = class BaseCodec {
       }
     }
     if (bitIndex !== 7) {
+      return { bytes, byte, bitIndex }
+      console.error('pushing last byte', byte)
       bytes.push(byte)
     }
-    return bytes
+    return { bytes }
   }
 
   /** @param {Buffer} buf */
@@ -54,7 +57,10 @@ module.exports = class BaseCodec {
         }
       }
     }
-    debugger
+    if (bits.length / 8 !== Math.round(bits.length / 8)) {
+      console.error('chit')
+      debugger
+    }
     return bits
   }
 

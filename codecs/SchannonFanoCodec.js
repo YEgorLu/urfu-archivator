@@ -1,8 +1,10 @@
+debugger
 const { Stream, Readable } = require("node:stream");
 const BaseCodec = require("../utils/BaseCodec");
 
 const chunk = require('lodash/chunk');
 const FileDescriptor = require("../utils/FileDescriptor");
+const { debug } = require("node:console");
 
 const ENCODE_CHUNK_LENGHTH = 1000
 
@@ -27,6 +29,8 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
 
     // 3. Создание таблицы кодов
     this.buildCodeTable(tree);
+    console.error(this.codeTable)
+    console.error(Object.fromEntries(Object.entries(this.codeTable).map(([k, v]) => [String.fromCharCode(k), v])))
 
     // 4. Кодирование данных
     const newReader = descriptor.getReader()
@@ -52,7 +56,8 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
 
   async* decodeByChunk(encodedStream, codeTable, dataBitsLen) {
     let currentCode = '';
-    let decodedData = '';
+    let decodedData = [];
+    let lines = 0
     debugger
 
     for await (const chunk of encodedStream) {
@@ -64,11 +69,18 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
         dataBitsLen--
         currentCode += bit
         if (codeTable[currentCode]) {
-          decodedData += String.fromCharCode(codeTable[currentCode])
+          if (codeTable[currentCode] === '10') {
+            lines++
+            if (lines === 47)
+              debugger
+          }
+          decodedData.push(String.fromCharCode(codeTable[currentCode]))
           currentCode = ''
         }
       }
-      yield decodedData
+
+      yield decodedData.join('')
+      decodedData = []
     }
   }
 
@@ -145,24 +157,23 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
   }
 
   async encodeData(reader) {
-    async function* sss() {
-      let encodedData = Buffer.alloc(0);
-      let currentByte = 0;
-      let bitIndex = 7;
-      let codeLength = 0;
-
+    let lastBitIndex
+    let lastByte
+    async function* encodeChunk() {
       for await (const chunk of reader) {
         debugger
         const s = chunk.toString().split('')
-        console.error(s)
         const bitChars = s.flatMap(symb => this.codeTable[symb.charCodeAt(0)].toString(2).split(''))
         debugger
-        const bytes = this.bitStringToBuffer(bitChars)
-        console.error('bytes', bytes, s, bitChars)
-        yield Buffer.from(bytes)
+        const data = this.bitStringToBuffer(bitChars, lastByte, lastBitIndex)
+        lastBitIndex = data.bitIndex
+        lastByte = data.byte
+        yield Buffer.from(data.bytes)
       }
-
+      if (lastBitIndex !== undefined || lastByte !== undefined) {
+        yield Buffer.from([lastByte])
+      }
     }
-    return Readable.from(sss.call(this))
+    return Readable.from(encodeChunk.call(this))
   }
 };
