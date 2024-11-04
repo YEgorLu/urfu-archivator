@@ -1,0 +1,26 @@
+{
+  "name": "urfu-archivator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YEgorLu/urfu-archivator.git"
+  },
+  "author": "YEgorLu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/YEgorLu/urfu-archivator/issues"
+  },
+  "homepage": "https://github.com/YEgorLu/urfu-archivator#readme",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.7.9"
+  },
+  "dependencies": {
+    "@types/lodash": "^4.17.12",
+    "lodash": "^4.17.21"
+  }
+}
