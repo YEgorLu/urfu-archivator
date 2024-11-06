@@ -1,32 +1,33 @@
 const Archivator = require("./archivator")
-const ShannonFanoCodec = require("./codecs/SchannonFanoCodec")
-const FileDescriptor = require('./utils/FileDescriptor')
+const { CODECS } = require('./codecs')
+
+const ARGS = [
+  { field: 'codec', options: CODECS },
+  { field: 'operation', options: ['compress', 'decompress'] },
+  { field: 'filePath' },
+  { field: 'outputPath' }
+]
 
 function parseArgv() {
-  const operation = process.argv[2]
-  const filePath = process.argv[3]
-  const outputPath = process.argv[4]
-  if (!operation) {
-    throw new Error('Pass operation as first argument')
+  const args = {}
+  for (let i = 0; i < ARGS.length; i++) {
+    const indexInArgv = i + 2
+    const position = i + 1
+    const config = ARGS[i]
+    const input = process.argv[indexInArgv]
+    if (!input) {
+      throw new Error(`Pass "${config.field}" as argument in position ${position}`)
+    }
+    if (config.options && !config.options.some(option => option === input)) {
+      throw new Error(`"${config.field}" must be "${config.options.join('" or "')}" at position ${position}`)
+    }
+    args[config.field] = input
   }
-  if (operation !== 'compress' && operation !== 'decompress') {
-    throw new Error('Operation must be "compress" or "decompress"')
-  }
-  if (!filePath) {
-    throw new Error('Pass file path as second argument')
-  }
-  if (!outputPath) {
-    throw new Error('Pass output path as third argument')
-  }
-
-  return { filePath, outputPath, operation }
+  return args
 }
 
 async function main() {
-  //const contents = fs.readFileSync('./asd', 'utf-8')
-  //console.error(contents)
-  const { filePath, outputPath, operation } = parseArgv()
-  const codec = new ShannonFanoCodec()
+  const { filePath, outputPath, operation, codec } = parseArgv()
   const archivator = new Archivator(codec)
   await archivator[operation](filePath, outputPath)
 }

@@ -38,8 +38,6 @@ module.exports = class BaseCodec {
     }
     if (bitIndex !== 7) {
       return { bytes, byte, bitIndex }
-      console.error('pushing last byte', byte)
-      bytes.push(byte)
     }
     return { bytes }
   }
@@ -56,10 +54,6 @@ module.exports = class BaseCodec {
           bits.push('0')
         }
       }
-    }
-    if (bits.length / 8 !== Math.round(bits.length / 8)) {
-      console.error('chit')
-      debugger
     }
     return bits
   }

@@ -18,9 +18,5 @@
   "description": "",
   "devDependencies": {
     "@types/node": "^22.7.9"
-  },
-  "dependencies": {
-    "@types/lodash": "^4.17.12",
-    "lodash": "^4.17.21"
   }
 }

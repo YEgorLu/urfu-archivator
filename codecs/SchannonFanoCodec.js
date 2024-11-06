@@ -1,12 +1,5 @@
-debugger
-const { Stream, Readable } = require("node:stream");
+const { Readable } = require("node:stream");
 const BaseCodec = require("../utils/BaseCodec");
-
-const chunk = require('lodash/chunk');
-const FileDescriptor = require("../utils/FileDescriptor");
-const { debug } = require("node:console");
-
-const ENCODE_CHUNK_LENGHTH = 1000
 
 module.exports = class ShannonFanoCodec extends BaseCodec {
 
@@ -20,24 +13,15 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
 
   async encode(descriptor) {
     const reader = descriptor.getReader()
-    // 1. Подсчет частоты символов
+
     const frequencies = await this.calculateFrequencies(reader);
     await reader.close()
 
-    // 2. Создание дерева Шеннона-Фано
     const tree = this.buildShannonFanoTree(frequencies);
-
-    // 3. Создание таблицы кодов
     this.buildCodeTable(tree);
-    console.error(this.codeTable)
-    console.error(Object.fromEntries(Object.entries(this.codeTable).map(([k, v]) => [String.fromCharCode(k), v])))
 
-    // 4. Кодирование данных
     const newReader = descriptor.getReader()
     const encodedData = await this.encodeData(newReader);
-    //await newReader.close()
-
-    // 5. Возврат закодированных данных и таблицы кодов
 
     const dataLength = Object.keys(frequencies).reduce((acc, charCode) => {
       const codeLen = this.codeTable[charCode].length
@@ -58,7 +42,7 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
     let currentCode = '';
     let decodedData = [];
     let lines = 0
-    debugger
+
 
     for await (const chunk of encodedStream) {
       const bits = this.readBitsFromBuffer(chunk)
@@ -71,8 +55,6 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
         if (codeTable[currentCode]) {
           if (codeTable[currentCode] === '10') {
             lines++
-            if (lines === 47)
-              debugger
           }
           decodedData.push(String.fromCharCode(codeTable[currentCode]))
           currentCode = ''
@@ -109,17 +91,15 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
       frequency,
     }));
 
-    // Сортировка по убыванию частоты
+
     nodes.sort((a, b) => b.frequency - a.frequency);
 
-    //console.error(nodes)
-
     while (nodes.length > 1) {
-      // Выбираем два узла с наименьшими частотами
+
       const node1 = nodes.pop();
       const node2 = nodes.pop();
 
-      // Создание нового узла
+
       const newNode = {
         symbol: `${node1.symbol}${node2.symbol}`,
         frequency: node1.frequency + node2.frequency,
@@ -127,7 +107,7 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
         right: node2,
       };
 
-      // Вставка нового узла в массив
+
       const insertIndex = nodes.findIndex(
         (node) => newNode.frequency > node.frequency
       );
@@ -141,7 +121,7 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
   }
 
   buildCodeTable(node) {
-    debugger
+
     const buildTable = (node, code = []) => {
       if (node.left) {
         buildTable(node.left, [...code, '0']);
@@ -161,10 +141,10 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
     let lastByte
     async function* encodeChunk() {
       for await (const chunk of reader) {
-        debugger
+
         const s = chunk.toString().split('')
         const bitChars = s.flatMap(symb => this.codeTable[symb.charCodeAt(0)].toString(2).split(''))
-        debugger
+
         const data = this.bitStringToBuffer(bitChars, lastByte, lastBitIndex)
         lastBitIndex = data.bitIndex
         lastByte = data.byte

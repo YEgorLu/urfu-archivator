@@ -6,18 +6,22 @@ const readline = require('readline');
 const { pipeline } = require('stream/promises');
 const FileDescriptor = require("./utils/FileDescriptor");
 const { decode } = require("punycode");
+const { CODEC_MAP } = require('./codecs')
 
 
-const ENCODING = 'utf-8'
 
 module.exports = class Archivator {
 
   /** @typedef {BaseCodec} */
   codec
 
-  /** @param {BaseCodec} codec */
+  /** @param {BaseCodec | string} codec */
   constructor(codec) {
-    this.codec = codec
+    if (typeof codec === 'string') {
+      this.codec = new CODEC_MAP[codec]()
+    } else {
+      this.codec = codec
+    }
   }
 
   async compress(filePath, outputPath) {
@@ -42,26 +46,16 @@ module.exports = class Archivator {
   }
 
   async decompress(archivePath, outputPath) {
-    // 1. Читаем архив
-    // 2. Извлекаем метаданные
-    // 3. Декодируем данные
-    debugger
     const { codeTable, metaLength, dataBitsLen } = await this.readCodeTable(archivePath)
-    // for await (const chunk of inputReader) {
-    //   debugger
-    //   console.error(chunk.toString())
-    // }
-    console.error(codeTable)
+
     const outputDescriptor = new FileDescriptor(outputPath)
     const inputDescriptor = new FileDescriptor(archivePath)
     const inputReader = inputDescriptor.getReader(metaLength)
     const decodedStream = await this.codec.decode(inputReader, codeTable, dataBitsLen);
-    debugger
-    //await on(decodedStream, 'data', console.error)
+
     const outputWriter = outputDescriptor.getWriter()
     outputWriter.pipe(decodedStream)
     await once(decodedStream, 'end')
-    console.error('awaited end')
     await outputWriter.end()
   }
 
@@ -70,13 +64,11 @@ module.exports = class Archivator {
     const stream = fs.createReadStream(filePath)
     const rl = readline.createInterface({
       input: stream,
-      //crlfDelay: Infinity
     });
 
     let bitsLenRaw
     let codeTableRaw
     await new Promise(res => rl.on('line', input => {
-      debugger
       if (bitsLenRaw === undefined) {
         bitsLenRaw = input
         return
@@ -87,16 +79,11 @@ module.exports = class Archivator {
         res()
         return
       }
-      console.error('som line ', input)
     }))
     await once(stream, 'close')
-
-    debugger
-    console.error(codeTableRaw)
     stream.close()
 
     const metaRaw = this.buildMeta(JSON.parse(codeTableRaw), bitsLenRaw)
-    //return codeTable
     return { codeTable: JSON.parse(codeTableRaw), dataBitsLen: parseInt(bitsLenRaw), metaLength: Buffer.from(metaRaw).byteLength }
   }
 }
