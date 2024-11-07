@@ -1,4 +1,4 @@
-const Archivator = require("./archivator")
+const Archivator = require("./Archivator")
 const { CODECS } = require('./codecs')
 
 const ARGS = [

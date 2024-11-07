@@ -20,6 +20,12 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
     const tree = this.buildShannonFanoTree(frequencies);
     this.buildCodeTable(tree);
 
+    const probabilities = this.calculateProbabilities(frequencies)
+    const averageSymbLength = this.calculateAverageSymbLength(probabilities)
+    const relativeEffectivenes = this.calculateRelativeEffectivenesCoef(probabilities, averageSymbLength)
+    const statisticShrinking = this.calculateStatisticShrinking(averageSymbLength)
+    this.logStatistics(statisticShrinking, relativeEffectivenes)
+
     const newReader = descriptor.getReader()
     const encodedData = await this.encodeData(newReader);
 
@@ -30,6 +36,38 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
     }, 0)
 
     return { encodedData, dataLength, codeTable: this.codeTable };
+  }
+
+  logStatistics(staticShrinking, relativeEffectivenes) {
+    console.log('Коэфициент статистического сжатия: ', staticShrinking)
+    console.log('Коэфициент относительной эффективности: ', relativeEffectivenes)
+  }
+
+  calculateProbabilities(frequencies) {
+    const allCount = Object.values(frequencies).reduce((acc, cur) => acc += cur, 0)
+    const probabilities = {}
+    for (const symb in frequencies) {
+      const probability = frequencies[symb] / allCount
+      probabilities[symb] = (probability * this.codeTable[symb].length)
+    }
+    return probabilities
+  }
+
+  calculateAverageSymbLength(probabilities) {
+    return Object.keys(this.codeTable).reduce((averageLength, symb) => {
+      return averageLength += probabilities[symb]
+    }, 0.0)
+  }
+
+  calculateStatisticShrinking(averageSymbLength) {
+    return Math.log2(Object.keys(this.codeTable).length) / averageSymbLength
+  }
+
+  calculateRelativeEffectivenesCoef(probabilities, averageSymbLength) {
+    const entropy = Object.values(probabilities).reduce((entropy, probability) => {
+      return entropy -= (probability * Math.log2(probability))
+    }, 0.0)
+    return entropy / averageSymbLength
   }
 
   async decode(encodedStream, codeTable, dataBitsLen) {
@@ -143,7 +181,14 @@ module.exports = class ShannonFanoCodec extends BaseCodec {
       for await (const chunk of reader) {
 
         const s = chunk.toString().split('')
-        const bitChars = s.flatMap(symb => this.codeTable[symb.charCodeAt(0)].toString(2).split(''))
+        const bitChars = s.flatMap(symb => {
+          try {
+            return this.codeTable[symb.charCodeAt(0)].toString(2).split('')
+          } catch (err) {
+            console.error(err)
+            console.error(symb, symb.charCodeAt(0), this.codeTable[symb], this.codeTable)
+          }
+        })
 
         const data = this.bitStringToBuffer(bitChars, lastByte, lastBitIndex)
         lastBitIndex = data.bitIndex

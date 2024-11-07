@@ -26,6 +26,8 @@ module.exports = class Archivator {
 
   async compress(filePath, outputPath) {
     const descriptor = new FileDescriptor(filePath)
+    const sizeBefore = (await fsPromise.stat(filePath)).size
+
     const { encodedData, codeTable, dataLength } = await this.codec.encode(descriptor);
 
     const output = new FileDescriptor(outputPath).getWriter()
@@ -34,6 +36,9 @@ module.exports = class Archivator {
     output.pipe(encodedData)
     await once(encodedData, 'end')
     await output.end()
+
+    const sizeAfter = (await fsPromise.stat(outputPath)).size
+    console.log(`Коэфициент сжатия: ${sizeAfter / sizeBefore}`)
   }
 
   buildMeta(codeTable, dataBitsLen) {
